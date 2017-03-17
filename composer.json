@@ -1,0 +1,31 @@
+{
+  "name": "cosname/flarum-chinese-search",
+  "description": "Allow Flarum to search Chinese text.",
+  "type": "flarum-extension",
+  "keywords": ["search", "chinese", "text"],
+  "license": "MIT",
+  "authors": [
+      {
+          "name": "Yixuan Qiu",
+          "email": "yixuan.qiu@cos.name"
+      }
+  ],
+  "require": {
+    "flarum/core": "^0.1.0-beta.6"
+  },
+  "autoload": {
+      "psr-4": {
+          "Cosname\\": "src/"
+      }
+  },
+  "extra": {
+      "flarum-extension": {
+          "title": "Chinese Search",
+          "icon": {
+              "name": "search",
+              "backgroundColor": "#ddd",
+              "color": "#333"
+          }
+      }
+  }
+}
