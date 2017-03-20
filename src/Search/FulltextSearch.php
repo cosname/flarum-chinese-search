@@ -17,8 +17,16 @@ class FulltextSearch implements DriverInterface
     public function match($string)
     {
         // http://discuss.flarum.org.cn/d/321
+        /*
         $discussionIds = Post::where('type', 'comment')
             ->where('content', 'like', '%' . $string . '%')
+            ->lists('discussion_id', 'id');
+        */
+
+        // When MySQL has installed Chinese text parser
+        $discussionIds = Post::where('type', 'comment')
+            ->whereRaw('MATCH (`content`) AGAINST (?)', [$string])
+            ->limit(1000)
             ->lists('discussion_id', 'id');
 
         $relevantPostIds = [];
