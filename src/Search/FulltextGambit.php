@@ -40,23 +40,28 @@ class FulltextGambit implements GambitInterface
         // posts. Retrieve the collective relevance of each discussion's posts,
         // which we will use later in the order by clause, and also retrieve
         // the ID of the most relevant post.
-        
-        /* $subquery = Post::whereVisibleTo($search->getActor())
+
+        // If the string to be searched for has at least two characters
+        // and contains non-ASCII characters,
+        // use the slow but exact match, http://discuss.flarum.org.cn/d/321
+        if ((mb_strlen($bit) >= 2) && preg_match('/[^\x20-\x7f]/', $bit)) {
+            $subquery = Post::whereVisibleTo($search->getActor())
+                ->select('posts.discussion_id')
+                ->selectRaw('count(*) as score')
+                ->selectRaw('SUBSTRING_INDEX(GROUP_CONCAT('.$grammar->wrap('posts.id').' ORDER BY '.$grammar->wrap('posts.number').'), \',\', 1) as most_relevant_post_id')
+                ->where('posts.type', 'comment')
+                ->where('posts.content', 'like', '%' . $bit . '%')
+                ->groupBy('posts.discussion_id');
+        } else {
+            // Otherwise, use the fast full-text search
+            $subquery = Post::whereVisibleTo($search->getActor())
             ->select('posts.discussion_id')
             ->selectRaw('SUM(MATCH('.$grammar->wrap('posts.content').') AGAINST (?)) as score', [$bit])
             ->selectRaw('SUBSTRING_INDEX(GROUP_CONCAT('.$grammar->wrap('posts.id').' ORDER BY MATCH('.$grammar->wrap('posts.content').') AGAINST (?) DESC, '.$grammar->wrap('posts.number').'), \',\', 1) as most_relevant_post_id', [$bit])
             ->where('posts.type', 'comment')
             ->whereRaw('MATCH('.$grammar->wrap('posts.content').') AGAINST (? IN BOOLEAN MODE)', [$bit])
-            ->groupBy('posts.discussion_id'); */
-        
-        // Use the slow but exact match, http://discuss.flarum.org.cn/d/321
-        $subquery = Post::whereVisibleTo($search->getActor())
-            ->select('posts.discussion_id')
-            ->selectRaw('count(*) as score')
-            ->selectRaw('SUBSTRING_INDEX(GROUP_CONCAT('.$grammar->wrap('posts.id').' ORDER BY '.$grammar->wrap('posts.number').'), \',\', 1) as most_relevant_post_id')
-            ->where('posts.type', 'comment')
-            ->where('posts.content', 'like', '%' . $bit . '%')
             ->groupBy('posts.discussion_id');
+        }
 
         // Join the subquery into the main search query and scope results to
         // discussions that have a relevant title or that contain relevant posts.
