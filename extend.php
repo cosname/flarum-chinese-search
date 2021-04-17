@@ -1,11 +1,13 @@
 <?php
 
-use Cosname\Listener;
-use Illuminate\Contracts\Events\Dispatcher;
+use Flarum\Extend;
+use Flarum\Discussion\Search\DiscussionSearcher;
+use Cosname\Search;
 
 return [
-    // Add listener
-    function (Dispatcher $events) {
-        $events->subscribe(Listener\ChangeFulltextSearcher::class);
-    }
+    // Change full-text searcher
+    //
+    // See https://github.com/flarum/core/blob/master/tests/integration/extenders/SimpleFlarumSearchTest.php
+    (new Extend\SimpleFlarumSearch(DiscussionSearch::class))
+        ->setFullTextGambit(Search\FulltextGambit::class)
 ];

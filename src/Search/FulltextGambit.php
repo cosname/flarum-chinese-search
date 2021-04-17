@@ -5,33 +5,28 @@
  *
  * (c) Toby Zerner <toby.zerner@gmail.com>
  * 
- * Copyright (c) 2018 Yixuan Qiu
+ * Copyright (c) 2018-2021 Yixuan Qiu
  * 
  */
 
 namespace Cosname\Search;
 
-use Flarum\Discussion\Search\DiscussionSearch;
 use Flarum\Post\Post;
-use Flarum\Search\AbstractSearch;
 use Flarum\Search\GambitInterface;
+use Flarum\Search\SearchState;
 use Illuminate\Database\Query\Expression;
-use LogicException;
 
 class FulltextGambit implements GambitInterface
 {
     /**
      * {@inheritdoc}
      */
-    public function apply(AbstractSearch $search, $bit)
+    public function apply(SearchState $search, $bit)
     {
-        if (! $search instanceof DiscussionSearch) {
-            throw new LogicException('This gambit can only be applied on a DiscussionSearch');
-        }
-
-        // The @ character crashes fulltext searches on InnoDB tables.
-        // See https://bugs.mysql.com/bug.php?id=74042
-        $bit = str_replace('@', '*', $bit);
+        // Replace all non-word characters with spaces.
+        // We do this to prevent MySQL fulltext search boolean mode from taking
+        // effect: https://dev.mysql.com/doc/refman/5.7/en/fulltext-boolean.html
+        $bit = preg_replace('/[^\p{L}\p{N}_]+/u', ' ', $bit);
 
         $query = $search->getQuery();
         $grammar = $query->getGrammar();
@@ -43,7 +38,7 @@ class FulltextGambit implements GambitInterface
 
         // If the string to be searched for has at least two characters
         // and contains non-ASCII characters,
-        // use the slow but exact match, http://discuss.flarum.org.cn/d/321
+        // use the slow but exact match, https://discuss.flarum.org.cn/d/321
         if ((mb_strlen($bit) >= 2) && preg_match('/[^\x20-\x7f]/', $bit)) {
             $subquery = Post::whereVisibleTo($search->getActor())
                 ->select('posts.discussion_id')
@@ -55,12 +50,12 @@ class FulltextGambit implements GambitInterface
         } else {
             // Otherwise, use the fast full-text search
             $subquery = Post::whereVisibleTo($search->getActor())
-            ->select('posts.discussion_id')
-            ->selectRaw('SUM(MATCH('.$grammar->wrap('posts.content').') AGAINST (?)) as score', [$bit])
-            ->selectRaw('SUBSTRING_INDEX(GROUP_CONCAT('.$grammar->wrap('posts.id').' ORDER BY MATCH('.$grammar->wrap('posts.content').') AGAINST (?) DESC, '.$grammar->wrap('posts.number').'), \',\', 1) as most_relevant_post_id', [$bit])
-            ->where('posts.type', 'comment')
-            ->whereRaw('MATCH('.$grammar->wrap('posts.content').') AGAINST (? IN BOOLEAN MODE)', [$bit])
-            ->groupBy('posts.discussion_id');
+                ->select('posts.discussion_id')
+                ->selectRaw('SUM(MATCH('.$grammar->wrap('posts.content').') AGAINST (?)) as score', [$bit])
+                ->selectRaw('SUBSTRING_INDEX(GROUP_CONCAT('.$grammar->wrap('posts.id').' ORDER BY MATCH('.$grammar->wrap('posts.content').') AGAINST (?) DESC, '.$grammar->wrap('posts.number').'), \',\', 1) as most_relevant_post_id', [$bit])
+                ->where('posts.type', 'comment')
+                ->whereRaw('MATCH('.$grammar->wrap('posts.content').') AGAINST (? IN BOOLEAN MODE)', [$bit])
+                ->groupBy('posts.discussion_id');
         }
 
         // Join the subquery into the main search query and scope results to
