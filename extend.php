@@ -8,6 +8,6 @@ return [
     // Change full-text searcher
     //
     // See https://github.com/flarum/core/blob/master/tests/integration/extenders/SimpleFlarumSearchTest.php
-    (new Extend\SimpleFlarumSearch(DiscussionSearch::class))
+    (new Extend\SimpleFlarumSearch(DiscussionSearcher::class))
         ->setFullTextGambit(Search\FulltextGambit::class)
 ];
